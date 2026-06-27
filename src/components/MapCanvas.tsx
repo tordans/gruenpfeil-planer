@@ -14,6 +14,7 @@ import {
 import type { FeatureCollection } from 'geojson'
 import { ExternalLink } from 'lucide-react'
 import { useDoc } from '~/lib/useDoc'
+import { parseMap, formatMap } from '~/domain/doc'
 import { decodeGeo } from '~/domain/geoParam'
 import { STEP_BY_ID, getStep } from '~/domain/steps'
 import { StepIcon } from '~/components/StepIcon'
@@ -88,9 +89,8 @@ export function MapCanvas({
   const relevantFilter = useMemo(() => relevantBikelaneFilter(), [])
 
   const initialView = useMemo(() => {
-    if (doc.view?.lng != null && doc.view?.lat != null) {
-      return { longitude: doc.view.lng, latitude: doc.view.lat, zoom: doc.view.zoom ?? 17 }
-    }
+    const v = parseMap(doc.map)
+    if (v) return { longitude: v.lng, latitude: v.lat, zoom: v.zoom }
     if (doc.signal) return { longitude: doc.signal.lng, latitude: doc.signal.lat, zoom: 18 }
     return DEFAULT_VIEW
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,16 +159,8 @@ export function MapCanvas({
   }
 
   function handleMoveEnd(e: ViewStateChangeEvent) {
-    const { longitude, latitude, zoom, bearing } = e.viewState
-    setDoc((prev) => ({
-      ...prev,
-      view: {
-        lng: round(longitude),
-        lat: round(latitude),
-        zoom: Math.round(zoom * 100) / 100,
-        bearing: Math.round(bearing),
-      },
-    }))
+    const { longitude, latitude, zoom } = e.viewState
+    setDoc((prev) => ({ ...prev, map: formatMap({ lng: longitude, lat: latitude, zoom }) }))
   }
 
   const interactiveLayerIds = [
@@ -230,14 +222,16 @@ export function MapCanvas({
             source-layer={MLY_IMAGE_LAYER}
             filter={coverageFilter}
             layout={{
-              'text-field': '➤',
-              'text-size': 18,
-              'text-rotate': ['get', 'compass_angle'],
+              'text-field': '▲',
+              'text-font': ['Noto Sans Regular'],
+              'text-size': 16,
+              'text-offset': [0, -0.6],
+              'text-rotate': ['coalesce', ['get', 'compass_angle'], 0],
               'text-rotation-alignment': 'map',
               'text-allow-overlap': true,
               'text-ignore-placement': true,
             }}
-            paint={{ 'text-color': '#16a34a', 'text-halo-color': '#fff', 'text-halo-width': 1 }}
+            paint={{ 'text-color': '#16a34a', 'text-halo-color': '#fff', 'text-halo-width': 1.5 }}
           />
           <Layer
             id={COVERAGE_POINTS_LAYER}
@@ -278,6 +272,7 @@ export function MapCanvas({
           layout={{
             'symbol-placement': 'line',
             'text-field': '▶',
+            'text-font': ['Noto Sans Regular'],
             'text-size': 16,
             'text-keep-upright': false,
             'symbol-spacing': 80,
@@ -402,10 +397,6 @@ export function MapCanvas({
       {children}
     </Map>
   )
-}
-
-function round(n: number): number {
-  return Math.round(n * 1e6) / 1e6
 }
 
 /** Bounding box [minLng, minLat, maxLng, maxLat] of a (Multi)LineString feature. */

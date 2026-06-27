@@ -69,11 +69,8 @@ export const zUnfaelle = z
 export const zDoc = z.object({
   v: z.literal(1).catch(1).default(1),
   meta: zMeta.optional(),
-  /** map viewport */
-  view: z
-    .object({ lng: z.number(), lat: z.number(), zoom: z.number(), bearing: z.number() })
-    .partial()
-    .optional(),
+  /** map viewport as a compact "zoom/lat/lng" string */
+  map: z.string().optional(),
   signal: zSignal.optional(),
   /** OSM way the cyclist rides in on (GeoJSON LineString coords) */
   from: z.object({ coords: z.array(zLngLat), osmId: z.string().optional() }).optional(),
@@ -89,6 +86,22 @@ export const zDoc = z.object({
 export type Doc = z.infer<typeof zDoc>
 
 export const EMPTY_DOC: Doc = { v: 1 }
+
+export type Viewport = { lng: number; lat: number; zoom: number }
+
+/** Parse the compact "zoom/lat/lng" map param. */
+export function parseMap(map: string | undefined): Viewport | undefined {
+  if (!map) return undefined
+  const [zoom, lat, lng] = map.split('/').map(Number)
+  if ([zoom, lat, lng].some((n) => !Number.isFinite(n))) return undefined
+  return { lng, lat, zoom }
+}
+
+/** Format a viewport into the compact "zoom/lat/lng" string. */
+export function formatMap(v: { zoom: number; lat: number; lng: number }): string {
+  const r = (n: number, d: number) => Number(n.toFixed(d)).toString()
+  return `${r(v.zoom, 2)}/${r(v.lat, 6)}/${r(v.lng, 6)}`
+}
 
 /** Read a single step's state from the doc (never undefined). */
 export function stepState(doc: Doc, stepId: string): StepState {

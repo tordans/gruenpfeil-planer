@@ -4,6 +4,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { routeTree } from './routeTree.gen'
+import { routerSearch } from './lib/routerSearch'
 import './styles.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import 'mapillary-js/dist/mapillary.css'
@@ -15,6 +16,9 @@ const queryClient = new QueryClient({
 const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
+  trailingSlash: 'never',
+  parseSearch: routerSearch.parse,
+  stringifySearch: routerSearch.stringify,
   context: { queryClient },
 })
 

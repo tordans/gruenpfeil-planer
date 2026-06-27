@@ -38,6 +38,34 @@ out geom;`
   )
 }
 
+export type TrafficSignal = { id: string; lng: number; lat: number }
+
+/** Load traffic-signal nodes within a bounding box (current map view). */
+export async function fetchTrafficSignals(
+  bounds: { south: number; west: number; north: number; east: number },
+  signal?: AbortSignal,
+): Promise<TrafficSignal[]> {
+  const { south, west, north, east } = bounds
+  const query = `[out:json][timeout:25];
+node["highway"="traffic_signals"](${south},${west},${north},${east});
+out;`
+
+  const res = await fetch(OVERPASS_URL, {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(query),
+    signal,
+  })
+  if (!res.ok) throw new Error(`Overpass ${res.status}`)
+  const json = await res.json()
+  return (json.elements ?? [])
+    .filter((e: { type: string; lon?: number; lat?: number }) => e.type === 'node' && e.lon != null)
+    .map((e: { id: number; lon: number; lat: number }) => ({
+      id: `node/${e.id}`,
+      lng: e.lon,
+      lat: e.lat,
+    }))
+}
+
 export function wayLabel(f: WayFeature): string {
   const p = f.properties ?? {}
   const name = (p.name as string) || (p.ref as string)

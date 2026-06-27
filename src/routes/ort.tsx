@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { Marker, useMap } from 'react-map-gl/maplibre'
 import { ArrowRight, RefreshCw, Loader2, Check } from 'lucide-react'
 import type { FeatureCollection } from 'geojson'
 import { MapCanvas } from '~/components/MapCanvas'
 import { StepIcon } from '~/components/StepIcon'
+import { TrafficLight } from '~/components/icons'
 import { useDoc } from '~/lib/useDoc'
 import { GEOMETRIE_STEPS } from '~/domain/steps'
-import { fetchWays, type WayFeature } from '~/domain/overpass'
+import { fetchWays, fetchTrafficSignals, type WayFeature, type TrafficSignal } from '~/domain/overpass'
 import { pickNearestWay, orientEndToward, orientStartToward, reverse, type LngLat } from '~/lib/geo'
 
 export const Route = createFileRoute('/ort')({
@@ -19,6 +21,33 @@ type Sub = 'signal' | 'from' | 'to'
 function OrtPage() {
   const [doc, setDoc] = useDoc()
   const [sub, setSub] = useState<Sub>('signal')
+  const maps = useMap()
+  const [signals, setSignals] = useState<TrafficSignal[]>([])
+  const [loadingSignals, setLoadingSignals] = useState(false)
+
+  async function loadTrafficSignals() {
+    const m = maps.pruefmap
+    if (!m) return
+    const b = m.getBounds()
+    setLoadingSignals(true)
+    try {
+      const found = await fetchTrafficSignals({
+        south: b.getSouth(),
+        west: b.getWest(),
+        north: b.getNorth(),
+        east: b.getEast(),
+      })
+      setSignals(found)
+    } finally {
+      setLoadingSignals(false)
+    }
+  }
+
+  function selectSignal(s: TrafficSignal) {
+    setDoc((p) => ({ ...p, signal: { lng: s.lng, lat: s.lat, osmId: s.id } }))
+    setSignals([])
+    setSub('from')
+  }
 
   // advance to the first incomplete sub-step on load
   useEffect(() => {
@@ -69,7 +98,45 @@ function OrtPage() {
           overlay={overlay}
           bikelanesClickable={false}
           cursor="crosshair"
-        />
+        >
+          {sub === 'signal' &&
+            signals.map((s) => (
+              <Marker
+                key={s.id}
+                longitude={s.lng}
+                latitude={s.lat}
+                anchor="bottom"
+                onClick={(e) => {
+                  e.originalEvent.stopPropagation()
+                  selectSignal(s)
+                }}
+              >
+                <button
+                  type="button"
+                  title="Diese Ampel als LZA wählen"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-red-600 text-white shadow-lg hover:bg-red-700"
+                >
+                  <TrafficLight size={18} />
+                </button>
+              </Marker>
+            ))}
+        </MapCanvas>
+
+        {sub === 'signal' && (
+          <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2">
+            <button
+              type="button"
+              onClick={loadTrafficSignals}
+              disabled={loadingSignals}
+              className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-red-700 disabled:opacity-60"
+            >
+              {loadingSignals ? <Loader2 size={16} className="animate-spin" /> : <TrafficLight size={16} />}
+              Ampel im Gebiet anzeigen
+              {signals.length > 0 && <span className="opacity-80">({signals.length})</span>}
+            </button>
+          </div>
+        )}
+
         {sub !== 'signal' && waysQuery.isFetching && (
           <div className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm shadow">
             <Loader2 size={15} className="animate-spin" /> OSM-Wege werden geladen…
@@ -106,6 +173,25 @@ function OrtPage() {
                       {done && <Check size={15} className="text-green-600" />}
                     </div>
                     <p className="mt-0.5 text-xs text-gray-500">{step.help}</p>
+                    {step.id === 'signal' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSub('signal')
+                          loadTrafficSignals()
+                        }}
+                        disabled={loadingSignals}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                      >
+                        {loadingSignals ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <TrafficLight size={13} />
+                        )}
+                        Ampel im Gebiet anzeigen
+                        {signals.length > 0 && <span className="opacity-80">({signals.length})</span>}
+                      </button>
+                    )}
                     {step.id !== 'signal' && done && (
                       <button
                         onClick={() => flip(step.id as 'from' | 'to')}
