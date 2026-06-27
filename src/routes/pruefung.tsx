@@ -118,6 +118,7 @@ function PruefungPage() {
           coverageYears={coverageYears}
           onPickImage={setSelectedImageId}
           draft={draftFC}
+          bikelanesClickable={tool === 'idle'}
           cursor={tool !== 'idle' ? 'crosshair' : undefined}
         />
         {tool === 'draw' && step.interaction !== 'draw-point' && (

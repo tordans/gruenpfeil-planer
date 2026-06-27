@@ -23,10 +23,20 @@ drawn geometry is lz-compressed). Copy the link to share or reproduce a check ex
 the precise Mapillary viewpoints. Captured PNG screenshots are a derived cache in IndexedDB
 (regenerable from the URL).
 
+## Map layers
+
+- Basemap: **OpenFreeMap positron**.
+- **TILDA Radinfrastruktur** (`atlas_generalized_bikelanes`): all bike-routing forms drawn blue —
+  **solid** for the categories relevant to the Z721 check, **dashed** for the rest. Click a line for
+  its translated category and a deeplink to tilda-geo.de. The relevance rule and the per-category
+  table are documented in [docs/tilda-bikelanes.md](docs/tilda-bikelanes.md) (source of truth:
+  [`src/domain/tildaBikelanes.ts`](src/domain/tildaBikelanes.ts)).
+- Mapillary coverage (with direction cones) on the checklist map.
+
 ## Tech
 
-Vite + React 19 + TypeScript · TanStack Router + Query · `react-map-gl/maplibre` (OpenFreeMap) ·
-`mapillary-js` · Zod · Tailwind · Vitest · oxlint · Bun.
+Vite + React 19 + TypeScript · TanStack Router + Query · `react-map-gl/maplibre` (OpenFreeMap
+positron) · `mapillary-js` · TILDA / Overpass · Zod · Tailwind · Vitest · oxlint · Bun.
 
 ## Setup
 

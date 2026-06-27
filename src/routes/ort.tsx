@@ -67,6 +67,7 @@ function OrtPage() {
         <MapCanvas
           onMapClick={onMapClick}
           overlay={overlay}
+          bikelanesClickable={false}
           cursor="crosshair"
         />
         {sub !== 'signal' && waysQuery.isFetching && (

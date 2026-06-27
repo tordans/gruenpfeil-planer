@@ -1,9 +1,10 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   Map,
   Source,
   Layer,
   Marker,
+  Popup,
   NavigationControl,
   ScaleControl,
   AttributionControl,
@@ -11,17 +12,39 @@ import {
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
 import type { FeatureCollection } from 'geojson'
+import { ExternalLink } from 'lucide-react'
 import { useDoc } from '~/lib/useDoc'
 import { decodeGeo } from '~/domain/geoParam'
 import { STEP_BY_ID, getStep } from '~/domain/steps'
 import { StepIcon } from '~/components/StepIcon'
 import { TrafficLight } from '~/components/icons'
 import { mapillaryTileUrl, MLY_IMAGE_LAYER, ONE_YEAR_MS } from '~/domain/mapillary'
+import {
+  TILDA_TILEJSON,
+  TILDA_SOURCE_LAYER,
+  TILDA_ATTRIBUTION,
+  relevantBikelaneFilter,
+  getCategory,
+  bikelaneLabel,
+  isRelevantCategory,
+  osmFeatureId,
+  buildTildaDeeplink,
+} from '~/domain/tildaBikelanes'
 
-const BASEMAP = 'https://tiles.openfreemap.org/styles/liberty'
+const BASEMAP = 'https://tiles.openfreemap.org/styles/positron'
 const DEFAULT_VIEW = { longitude: 13.404954, latitude: 52.520008, zoom: 12 }
 export const COVERAGE_POINTS_LAYER = 'mly-image-points'
 export const COVERAGE_CONES_LAYER = 'mly-image-cones'
+export const BIKELANES_RELEVANT_LAYER = 'tilda-bikelanes-relevant'
+export const BIKELANES_OTHER_LAYER = 'tilda-bikelanes-other'
+const BIKELANE_BLUE = '#1d4ed8'
+
+type BikelanePopup = {
+  lng: number
+  lat: number
+  category?: string
+  href?: string
+}
 
 type Props = {
   mapId?: string
@@ -36,6 +59,10 @@ type Props = {
   draft?: FeatureCollection | null
   /** candidate OSM ways (highlight for picking) */
   overlay?: FeatureCollection | null
+  /** show the TILDA bikelanes layer (relevant solid, others dashed) */
+  bikelanes?: boolean
+  /** allow clicking bikelanes to open the info popup (disable while drawing) */
+  bikelanesClickable?: boolean
   /** extra markers / overlays */
   children?: ReactNode
   /** capture the canvas for screenshots (report) */
@@ -51,10 +78,14 @@ export function MapCanvas({
   cursor,
   draft,
   overlay,
+  bikelanes = true,
+  bikelanesClickable = true,
   children,
   preserveDrawingBuffer = false,
 }: Props) {
   const [doc, setDoc] = useDoc()
+  const [bikelanePopup, setBikelanePopup] = useState<BikelanePopup | null>(null)
+  const relevantFilter = useMemo(() => relevantBikelaneFilter(), [])
 
   const initialView = useMemo(() => {
     if (doc.view?.lng != null && doc.view?.lat != null) {
@@ -100,13 +131,30 @@ export function MapCanvas({
 
   function handleClick(e: MapLayerMouseEvent) {
     const feature = e.features?.[0]
-    if (coverage && feature && onPickImage) {
-      const id = feature.properties?.id
+    const layerId = feature?.layer?.id
+
+    if (coverage && onPickImage && (layerId === COVERAGE_CONES_LAYER || layerId === COVERAGE_POINTS_LAYER)) {
+      const id = feature?.properties?.id
       if (id) {
         onPickImage(String(id))
         return
       }
     }
+
+    if (feature && (layerId === BIKELANES_RELEVANT_LAYER || layerId === BIKELANES_OTHER_LAYER)) {
+      const props = feature.properties as Record<string, unknown>
+      const category = getCategory(props)
+      const osmId = osmFeatureId(props)
+      const bbox = featureBbox(feature.geometry)
+      setBikelanePopup({
+        lng: e.lngLat.lng,
+        lat: e.lngLat.lat,
+        category,
+        href: osmId && bbox ? buildTildaDeeplink(osmId, bbox) : undefined,
+      })
+      return
+    }
+
     onMapClick?.([e.lngLat.lng, e.lngLat.lat], e)
   }
 
@@ -123,7 +171,10 @@ export function MapCanvas({
     }))
   }
 
-  const interactiveLayerIds = coverage ? [COVERAGE_CONES_LAYER, COVERAGE_POINTS_LAYER] : []
+  const interactiveLayerIds = [
+    ...(coverage ? [COVERAGE_CONES_LAYER, COVERAGE_POINTS_LAYER] : []),
+    ...(bikelanes && bikelanesClickable ? [BIKELANES_RELEVANT_LAYER, BIKELANES_OTHER_LAYER] : []),
+  ]
 
   return (
     <Map
@@ -141,10 +192,34 @@ export function MapCanvas({
     >
       <NavigationControl position="top-right" />
       <ScaleControl />
-      <AttributionControl
-        compact
-        customAttribution="© OpenStreetMap · OpenFreeMap · Mapillary"
-      />
+      <AttributionControl compact customAttribution={TILDA_ATTRIBUTION} />
+
+      {/* TILDA bikelanes — relevant solid, others dashed (both blue) */}
+      {bikelanes && (
+        <Source id="tilda" type="vector" url={TILDA_TILEJSON}>
+          <Layer
+            id={BIKELANES_OTHER_LAYER}
+            type="line"
+            source-layer={TILDA_SOURCE_LAYER}
+            filter={['!', relevantFilter] as never}
+            layout={{ 'line-cap': 'round' }}
+            paint={{
+              'line-color': BIKELANE_BLUE,
+              'line-width': 2,
+              'line-opacity': 0.55,
+              'line-dasharray': [2, 2],
+            }}
+          />
+          <Layer
+            id={BIKELANES_RELEVANT_LAYER}
+            type="line"
+            source-layer={TILDA_SOURCE_LAYER}
+            filter={relevantFilter as never}
+            layout={{ 'line-cap': 'round' }}
+            paint={{ 'line-color': BIKELANE_BLUE, 'line-width': 3.5, 'line-opacity': 0.9 }}
+          />
+        </Source>
+      )}
 
       {/* Mapillary coverage */}
       {coverage && (
@@ -290,6 +365,40 @@ export function MapCanvas({
         ))
       })}
 
+      {/* TILDA bikelane info popup */}
+      {bikelanePopup && (
+        <Popup
+          longitude={bikelanePopup.lng}
+          latitude={bikelanePopup.lat}
+          anchor="bottom"
+          closeOnClick={false}
+          onClose={() => setBikelanePopup(null)}
+          maxWidth="260px"
+        >
+          <div className="space-y-1 text-sm">
+            <div className="font-medium text-gray-900">
+              {bikelaneLabel(bikelanePopup.category)}
+            </div>
+            <div className="text-xs text-gray-500">
+              {bikelanePopup.category ?? 'ohne Kategorie'} ·{' '}
+              {isRelevantCategory(bikelanePopup.category)
+                ? 'für die Prüfung relevant'
+                : 'nicht prüfungsrelevant'}
+            </div>
+            {bikelanePopup.href && (
+              <a
+                href={bikelanePopup.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+              >
+                Auf tilda-geo.de öffnen <ExternalLink size={12} />
+              </a>
+            )}
+          </div>
+        </Popup>
+      )}
+
       {children}
     </Map>
   )
@@ -297,4 +406,27 @@ export function MapCanvas({
 
 function round(n: number): number {
   return Math.round(n * 1e6) / 1e6
+}
+
+/** Bounding box [minLng, minLat, maxLng, maxLat] of a (Multi)LineString feature. */
+function featureBbox(geometry: GeoJSON.Geometry): [number, number, number, number] | undefined {
+  let minLng = Infinity
+  let minLat = Infinity
+  let maxLng = -Infinity
+  let maxLat = -Infinity
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const visit = (coords: any): void => {
+    if (typeof coords?.[0] === 'number') {
+      const [lng, lat] = coords as [number, number]
+      if (lng < minLng) minLng = lng
+      if (lat < minLat) minLat = lat
+      if (lng > maxLng) maxLng = lng
+      if (lat > maxLat) maxLat = lat
+    } else if (Array.isArray(coords)) {
+      coords.forEach(visit)
+    }
+  }
+  if ('coordinates' in geometry) visit((geometry as { coordinates: unknown }).coordinates)
+  if (!Number.isFinite(minLng)) return undefined
+  return [minLng, minLat, maxLng, maxLat]
 }
