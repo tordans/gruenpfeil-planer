@@ -26,12 +26,16 @@ export function Stepper() {
           const status: Status =
             idx < currentIdx ? 'complete' : idx === currentIdx ? 'current' : 'upcoming'
           return (
-            <li key={phase.to} className="relative flex flex-1">
+            <li
+              key={phase.to}
+              className="relative flex flex-1"
+              style={{ zIndex: PHASES.length - idx }}
+            >
               <Link
                 to={phase.to}
                 search={(prev) => prev}
                 aria-current={status === 'current' ? 'step' : undefined}
-                className="group flex w-full items-center px-3 py-2 text-sm font-medium"
+                className="group relative flex w-full items-center bg-white px-3 py-2 text-sm font-medium"
               >
                 <Badge phase={phase} status={status} />
                 <span
@@ -47,7 +51,10 @@ export function Stepper() {
               </Link>
 
               {idx !== PHASES.length - 1 && (
-                <div aria-hidden className="absolute right-0 top-0 hidden h-full w-5 sm:block">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute right-0 top-0 z-10 hidden h-full w-5 sm:block"
+                >
                   <svg
                     fill="none"
                     viewBox="0 0 22 80"
@@ -57,6 +64,7 @@ export function Stepper() {
                     <path
                       d="M0 -2L20 40L0 82"
                       stroke="currentColor"
+                      strokeWidth={2}
                       vectorEffect="non-scaling-stroke"
                       strokeLinejoin="round"
                     />

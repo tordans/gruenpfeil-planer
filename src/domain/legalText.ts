@@ -4,6 +4,11 @@
  * Zeichen 721). Used as the fixed text in the report. Keyed by legal reference
  * so each checklist step can quote exactly its basis.
  */
+
+/** Official full text on Verwaltungsvorschriften im Internet (sister portal of Gesetze im Internet). */
+export const VWV_STVO_URL =
+  'https://www.verwaltungsvorschriften-im-internet.de/bsvwvbund_26012001_S3236420014.htm'
+
 export const LEGAL_TEXT: Record<string, string> = {
   'XI.1 S.1':
     'Der Einsatz des Schildes mit grünem Pfeil auf schwarzem Grund (Grünpfeil) kommt nur in Betracht, wenn der Rechtsabbieger Fußgänger- und Fahrzeugverkehr der freigegebenen Verkehrsrichtungen ausreichend einsehen kann, um die ihm auferlegten Sorgfaltspflichten zu erfüllen.',
