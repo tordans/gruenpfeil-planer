@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Marker, useMap } from 'react-map-gl/maplibre'
+import { Marker, useMap, type MarkerEvent } from 'react-map-gl/maplibre'
 import { ArrowRight, RefreshCw, Loader2, Check } from 'lucide-react'
 import type { FeatureCollection } from 'geojson'
 import { MapCanvas } from '~/components/MapCanvas'
@@ -106,7 +106,7 @@ function OrtPage() {
                 longitude={s.lng}
                 latitude={s.lat}
                 anchor="bottom"
-                onClick={(e) => {
+                onClick={(e: MarkerEvent<MouseEvent>) => {
                   e.originalEvent.stopPropagation()
                   selectSignal(s)
                 }}

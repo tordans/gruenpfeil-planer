@@ -9,6 +9,7 @@ import {
   ScaleControl,
   AttributionControl,
   type MapLayerMouseEvent,
+  type MapEvent,
   type ViewStateChangeEvent,
 } from 'react-map-gl/maplibre'
 import type { FeatureCollection } from 'geojson'
@@ -175,7 +176,7 @@ export function MapCanvas({
       mapStyle={BASEMAP}
       onClick={handleClick}
       onMoveEnd={handleMoveEnd}
-      onLoad={(e) => e.target.resize()}
+      onLoad={(e: MapEvent) => e.target.resize()}
       interactiveLayerIds={interactiveLayerIds}
       cursor={cursor}
       attributionControl={false}

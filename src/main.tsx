@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { routeTree } from './routeTree.gen'
 import { routerSearch } from './lib/routerSearch'
+import '~/lib/maplibreWorker'
+
 import './styles.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import 'mapillary-js/dist/mapillary.css'
