@@ -6,6 +6,5 @@ dist-ssr
 .env.*
 !.env.example
 .DS_Store
-src/routeTree.gen.ts
 coverage
 *.tsbuildinfo
