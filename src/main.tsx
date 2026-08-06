@@ -15,8 +15,11 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } },
 })
 
+const basepath = import.meta.env.BASE_URL.replace(/\/$/, '')
+
 const router = createRouter({
   routeTree,
+  ...(basepath ? { basepath } : {}),
   defaultPreload: 'intent',
   trailingSlash: 'never',
   parseSearch: routerSearch.parse,
