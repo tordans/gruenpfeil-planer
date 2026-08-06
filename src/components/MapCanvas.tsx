@@ -180,7 +180,9 @@ export function MapCanvas({
       interactiveLayerIds={interactiveLayerIds}
       cursor={cursor}
       attributionControl={false}
-      preserveDrawingBuffer={preserveDrawingBuffer}
+      {...(preserveDrawingBuffer
+        ? { canvasContextAttributes: { preserveDrawingBuffer: true } }
+        : {})}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
     >
       <NavigationControl position="top-right" />
